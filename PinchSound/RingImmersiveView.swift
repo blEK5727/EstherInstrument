@@ -137,11 +137,10 @@ struct RingImmersiveView: View {
     }
 
     func ringGradientColor(index: Int, total: Int) -> UIColor {
-        // Sweep from bright lime green → deep forest green
         let t = CGFloat(index) / CGFloat(total)
-        let hue: CGFloat = 0.33           // fixed green hue
-        let saturation = 0.5 + 0.5 * t   // 0.5 → 1.0
-        let brightness = 1.0 - 0.5 * t   // 1.0 → 0.5
+        let hue: CGFloat = 0.08           // brown hue
+        let saturation = 0.4 + 0.8 * t   // 0.4 → 0.8
+        let brightness = 0.8 - 0.4 * t   // 0.8 → 0.4
         return UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1.0)
     }
 
