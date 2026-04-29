@@ -248,6 +248,7 @@ struct ImmersiveView: View {
         state.phase = .listening
         
         let playbackController = mbira.playAudio(bg)
+        playbackController.gain = 3.0   // 🆕 boost volume by 6 dB
         state.audioController = playbackController
         
         Task { @MainActor in

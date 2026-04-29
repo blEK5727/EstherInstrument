@@ -1,10 +1,3 @@
-//
-//  PinchSoundApp.swift
-//  PinchSound
-//
-//  Replace your existing @main App file with this.
-//
-
 import SwiftUI
 
 @main
@@ -29,9 +22,21 @@ struct PinchSoundApp: App {
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
 
-        // Plain ring of spheres experience
+        // Ring of spheres experience
         ImmersiveSpace(id: appModel.ringSpaceID) {
             RingImmersiveView()
+                .environment(appModel)
+                .onAppear  { appModel.immersiveSpaceState = .open }
+                .onDisappear {
+                    appModel.immersiveSpaceState = .closed
+                    appModel.activeSpaceID = nil
+                }
+        }
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
+        
+        // 🆕 Christy's tilted ring of bars
+        ImmersiveSpace(id: appModel.christyInstrumentSpaceID) {
+            InstrumentImmersiveView()
                 .environment(appModel)
                 .onAppear  { appModel.immersiveSpaceState = .open }
                 .onDisappear {

@@ -10,6 +10,7 @@ import SwiftUI
 class AppModel {
     let instrumentSpaceID = "InstrumentSpace"
     let ringSpaceID       = "RingSpace"
+    let christyInstrumentSpaceID = "ChristyInstrumentSpace"
 
     enum ImmersiveSpaceState {
         case closed

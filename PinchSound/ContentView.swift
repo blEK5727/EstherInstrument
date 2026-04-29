@@ -45,6 +45,16 @@ struct ContentView: View {
             ) {
                 await toggleSpace(id: appModel.ringSpaceID)
             }
+            // 🆕 --- Christy's tilted ring instrument ---
+            SpaceButton(
+                title: "Tilted Ring Bars",
+                subtitle: "Pinch a hanging bar to play a pentatonic note",
+                systemImage: "music.note.list",
+                isActive: appModel.activeSpaceID == appModel.christyInstrumentSpaceID,
+                disabled: appModel.immersiveSpaceState == .inTransition
+            ) {
+                await toggleSpace(id: appModel.christyInstrumentSpaceID)
+            }
         }
         .padding(40)
     }
