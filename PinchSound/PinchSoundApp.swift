@@ -1,8 +1,5 @@
 //
-//  PinchSoundApp.swift
-//  PinchSound
-//
-//  Replace your existing @main App file with this.
+//  PinchSoundApp.swift  (or yayApp.swift — rename to match your @main file)
 //
 
 import SwiftUI
@@ -17,11 +14,14 @@ struct PinchSoundApp: App {
                 .environment(appModel)
         }
 
-        // Mbira + spheres experience
+        // 1 — Mbira + spiral spheres
         ImmersiveSpace(id: appModel.instrumentSpaceID) {
             ImmersiveView()
                 .environment(appModel)
-                .onAppear  { appModel.immersiveSpaceState = .open }
+                .onAppear {
+                    appModel.immersiveSpaceState = .open
+                    appModel.activeSpaceID = appModel.instrumentSpaceID
+                }
                 .onDisappear {
                     appModel.immersiveSpaceState = .closed
                     appModel.activeSpaceID = nil
@@ -29,11 +29,29 @@ struct PinchSoundApp: App {
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
 
-        // Plain ring of spheres experience
+        // 2 — Green box ring
         ImmersiveSpace(id: appModel.ringSpaceID) {
             RingImmersiveView()
                 .environment(appModel)
-                .onAppear  { appModel.immersiveSpaceState = .open }
+                .onAppear {
+                    appModel.immersiveSpaceState = .open
+                    appModel.activeSpaceID = appModel.ringSpaceID
+                }
+                .onDisappear {
+                    appModel.immersiveSpaceState = .closed
+                    appModel.activeSpaceID = nil
+                }
+        }
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
+
+        // 3 — Tilted stagger bar ring
+        ImmersiveSpace(id: appModel.staggerSpaceID) {
+            InstrumentImmersiveView()
+                .environment(appModel)
+                .onAppear {
+                    appModel.immersiveSpaceState = .open
+                    appModel.activeSpaceID = appModel.staggerSpaceID
+                }
                 .onDisappear {
                     appModel.immersiveSpaceState = .closed
                     appModel.activeSpaceID = nil

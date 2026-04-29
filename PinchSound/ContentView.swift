@@ -1,11 +1,8 @@
 //
 //  ContentView.swift
-//  PinchSound
 //
 
 import SwiftUI
-import RealityKit
-import RealityKitContent
 
 struct ContentView: View {
     @Environment(AppModel.self) private var appModel
@@ -14,7 +11,7 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("PinchSound")
+            Text("Instruments")
                 .font(.extraLargeTitle2)
                 .fontWeight(.bold)
 
@@ -24,7 +21,6 @@ struct ContentView: View {
             Divider()
                 .padding(.vertical, 8)
 
-            // --- Mbira experience ---
             SpaceButton(
                 title: "Mbira Instrument",
                 subtitle: "Pinch the mbira to unlock spheres",
@@ -35,7 +31,6 @@ struct ContentView: View {
                 await toggleSpace(id: appModel.instrumentSpaceID)
             }
 
-            // --- Ring experience ---
             SpaceButton(
                 title: "Ring of Spheres",
                 subtitle: "Pinch any sphere to play a note",
@@ -45,20 +40,27 @@ struct ContentView: View {
             ) {
                 await toggleSpace(id: appModel.ringSpaceID)
             }
+
+            SpaceButton(
+                title: "Stagger Ring",
+                subtitle: "Tilted ring of bars — look and pinch to play",
+                systemImage: "slider.vertical.3",
+                isActive: appModel.activeSpaceID == appModel.staggerSpaceID,
+                disabled: appModel.immersiveSpaceState == .inTransition
+            ) {
+                await toggleSpace(id: appModel.staggerSpaceID)
+            }
         }
         .padding(40)
     }
 
-    // Opens the requested space, or closes it if it's already open.
-    // Closes any other open space first.
+    // Opens the tapped space, closing any currently open space first.
     private func toggleSpace(id: String) async {
         switch appModel.immersiveSpaceState {
         case .open:
             appModel.immersiveSpaceState = .inTransition
             await dismissImmersiveSpace()
-            // If the user tapped a different button, open the new space
             if appModel.activeSpaceID != id {
-                appModel.immersiveSpaceState = .inTransition
                 await openSpace(id: id)
             }
         case .closed:
@@ -82,7 +84,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Reusable button component
+// MARK: - Reusable button
 
 private struct SpaceButton: View {
     let title: String

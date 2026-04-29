@@ -10,7 +10,8 @@ import SwiftUI
 class AppModel {
     let instrumentSpaceID = "InstrumentSpace"
     let ringSpaceID       = "RingSpace"
-
+    let staggerSpaceID    = "StaggerSpace"
+    
     enum ImmersiveSpaceState {
         case closed
         case inTransition
