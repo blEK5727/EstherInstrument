@@ -10,20 +10,21 @@ struct ContentView: View {
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
 
     var body: some View {
-        VStack(spacing: 24) {
-            Text("Instruments")
-                .font(.extraLargeTitle2)
+        VStack(spacing: 12) {
+            Text("Dimensional Soundscape")
+                .font(.title2)
                 .fontWeight(.bold)
 
             Text("Choose an experience")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Divider()
-                .padding(.vertical, 8)
+                .padding(.vertical, 4)
 
             SpaceButton(
-                title: "Mbira Instrument",
-                subtitle: "Pinch the mbira to unlock spheres",
+                title: "Mbira",
+                subtitle: "Pinch the mbira to unlock music notes",
                 systemImage: "waveform.and.mic",
                 isActive: appModel.activeSpaceID == appModel.instrumentSpaceID,
                 disabled: appModel.immersiveSpaceState == .inTransition
@@ -32,8 +33,8 @@ struct ContentView: View {
             }
 
             SpaceButton(
-                title: "Ring of Spheres",
-                subtitle: "Pinch any sphere to play a note",
+                title: "Glockenspiel Rings",
+                subtitle: "Pinch any cube to play a note",
                 systemImage: "circle.grid.3x3.fill",
                 isActive: appModel.activeSpaceID == appModel.ringSpaceID,
                 disabled: appModel.immersiveSpaceState == .inTransition
@@ -42,16 +43,27 @@ struct ContentView: View {
             }
 
             SpaceButton(
-                title: "Stagger Ring",
-                subtitle: "Tilted ring of bars — look and pinch to play",
+                title: "Gu-Zheng Ring",
+                subtitle: "Look and pinch to play",
                 systemImage: "slider.vertical.3",
                 isActive: appModel.activeSpaceID == appModel.staggerSpaceID,
                 disabled: appModel.immersiveSpaceState == .inTransition
             ) {
                 await toggleSpace(id: appModel.staggerSpaceID)
             }
+
+            SpaceButton(
+                title: "Ambient Soundscape",
+                subtitle: "Pinch shapes to layer ambient sounds",
+                systemImage: "waveform.path.ecg",
+                isActive: appModel.activeSpaceID == appModel.ambientSpaceID,
+                disabled: appModel.immersiveSpaceState == .inTransition
+            ) {
+                await toggleSpace(id: appModel.ambientSpaceID)
+            }
         }
-        .padding(40)
+        .padding(24)
+        .frame(width: 340)
     }
 
     // Opens the tapped space, closing any currently open space first.
@@ -98,31 +110,33 @@ private struct SpaceButton: View {
         Button {
             Task { @MainActor in await action() }
         } label: {
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 Image(systemName: systemImage)
-                    .font(.title2)
+                    .font(.body)
                     .foregroundStyle(isActive ? .white : .primary)
-                    .frame(width: 36)
+                    .frame(width: 28)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
                         .foregroundStyle(isActive ? .white : .primary)
                     Text(subtitle)
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(isActive ? .white.opacity(0.8) : .secondary)
                 }
                 Spacer()
 
                 if isActive {
                     Image(systemName: "checkmark.circle.fill")
+                        .font(.caption)
                         .foregroundStyle(.white)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
             .background(isActive ? Color.accentColor : Color.primary.opacity(0.07))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
         .disabled(disabled)

@@ -11,6 +11,7 @@ class AppModel {
     let instrumentSpaceID = "InstrumentSpace"
     let ringSpaceID       = "RingSpace"
     let staggerSpaceID    = "StaggerSpace"
+    let ambientSpaceID    = "AmbientSpace"
     
     enum ImmersiveSpaceState {
         case closed
