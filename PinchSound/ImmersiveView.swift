@@ -16,23 +16,16 @@ struct ImmersiveView: View {
     
     let songNotes: [Int] = [1, 2, 3, 2, 1, 3, 5, 1]
     
-    
     let mbiraTriggerCount = 3
     let bubbleAppearDelay: UInt64 = 5_000_000_000
-    
-    
-    let correctNotesToTriggerPhase3 = 6
-    
-    
-    let drawingPointCount = 15
     
     var body: some View {
         RealityView { content, attachments in
             
-            // ===== 阶段 1：mbira =====
+            // Phase 1: mbira
             await setupMbira(content: content, attachments: attachments)
             
-            // 球团
+            // Ball cluster (hidden until phase 2)
             let clusterRoot = Entity()
             clusterRoot.name = "clusterRoot"
             clusterRoot.position = clusterCenter
@@ -46,14 +39,12 @@ struct ImmersiveView: View {
             
             content.add(clusterRoot)
             
-            
             await preloadAudioResources()
             
             state.clusterRoot = clusterRoot
             state.content = content
             
         } attachments: {
-            
             Attachment(id: "mbiraHint") {
                 Text("Pinch to explore the mbira")
                     .font(.title3)
@@ -63,24 +54,7 @@ struct ImmersiveView: View {
                     .background(.ultraThinMaterial)
                     .clipShape(Capsule())
             }
-            
-            
-            Attachment(id: "phase3Entry") {
-                VStack(spacing: 12) {
-                    Text("✨ Performance Mode ✨")
-                        .font(.title2)
-                        .bold()
-                        .foregroundStyle(.white)
-                    Text("Pinch to enter")
-                        .font(.callout)
-                        .foregroundStyle(.white.opacity(0.8))
-                }
-                .padding(24)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-            }
         }
-        // drag
         .gesture(
             SpatialTapGesture()
                 .targetedToAnyEntity()
@@ -88,35 +62,20 @@ struct ImmersiveView: View {
                     handlePinch(on: value.entity)
                 }
         )
-        // drag2
-        .gesture(
-            DragGesture()
-                .targetedToAnyEntity()
-                .onChanged { value in
-                    if state.phase == .drawing {
-                        handleDrawing(at: value.location3D, entity: value.entity)
-                    }
-                }
-                .onEnded { _ in
-                    if state.phase == .drawing {
-                        handleDrawingPause()
-                    }
-                }
-        )
     }
     
     @State private var state = SceneState()
     
-    
+    // MARK: - Setup mbira
     
     func setupMbira(content: RealityViewContent, attachments: RealityViewAttachments) async {
         guard let scene = try? await Entity(named: "Immersive", in: realityKitContentBundle) else {
-            print("❌ 加载 Immersive 场景失败！")
+            print("❌ Failed to load Immersive scene")
             return
         }
         
         guard let mbira = scene.findEntity(named: "mbira") else {
-            print("❌ 在场景里找不到名为 'mbira' 的 entity")
+            print("❌ Couldn't find 'mbira' entity in scene")
             return
         }
         
@@ -131,27 +90,18 @@ struct ImmersiveView: View {
         state.mbira = mbira
         state.mbiraOriginalRotation = mbira.orientation
         
-        
         if let hintPanel = attachments.entity(for: "mbiraHint") {
             hintPanel.position = [0, 0.25, 0]
             mbira.addChild(hintPanel)
             state.mbiraHintPanel = hintPanel
-            print("✅ Hint panel 挂上了")
+            print("✅ Hint panel attached")
         } else {
-            print("❌ Hint panel 没拿到")
-        }
-        
-      
-        if let phase3Panel = attachments.entity(for: "phase3Entry") {
-            state.phase3EntryPanel = phase3Panel
-            print("✅ Phase3 panel 准备好了")
-        } else {
-            print("❌ Phase3 panel 没拿到")
+            print("❌ Hint panel not found")
         }
         
         startMbiraFloating(mbira)
         
-        print("✅ mbira 加载完成。请捏它 \(mbiraTriggerCount) 次")
+        print("✅ mbira loaded. Pinch \(mbiraTriggerCount) times to start")
     }
     
     func startMbiraFloating(_ mbira: Entity) {
@@ -168,7 +118,7 @@ struct ImmersiveView: View {
         }
     }
     
-    
+    // MARK: - Audio preload
     
     func preloadAudioResources() async {
         for i in 1...noteCount {
@@ -176,9 +126,9 @@ struct ImmersiveView: View {
             do {
                 let resource = try await AudioFileResource(named: "\(filename).mp3")
                 state.audioResources.append(resource)
-                print("✅ 加载音频：\(filename).mp3")
+                print("✅ Loaded audio: \(filename).mp3")
             } catch {
-                print("❌ 加载音频失败：\(filename).mp3 — \(error)")
+                print("❌ Failed to load \(filename).mp3 — \(error)")
             }
         }
         
@@ -188,24 +138,24 @@ struct ImmersiveView: View {
                 configuration: .init(shouldLoop: false)
             )
             state.backgroundMusic = bg
-            print("✅ 加载背景音乐：mbira_song.mp3")
+            print("✅ Loaded background music")
         } catch {
-            print("❌ 加载背景音乐失败：\(error)")
+            print("❌ Failed to load background music: \(error)")
         }
     }
     
-    
+    // MARK: - Pinch handler
     
     func handlePinch(on entity: Entity) {
-        // 阶段 1：捏 mbira
+        // Phase 1: pinch mbira
         if state.phase == .intro && (entity.name == "mbira" || isPartOfMbira(entity)) {
             handleMbiraPinch()
             return
         }
         
-        
+        // Pinch bubble
         if entity.name == "bubble", state.phase == .listening {
-            print("🫧 泡泡被捏！进入球飞模式")
+            print("🫧 Bubble pinched, entering ball phase")
             state.phase = .activated
             dismissBubble()
             
@@ -218,20 +168,13 @@ struct ImmersiveView: View {
             return
         }
         
-        
+        // Phase 2: pinch ball
         if entity.name.hasPrefix("ball_"), state.phase == .performing {
             playBall(entity)
             return
         }
         
-    
-        if entity.name == "phase3EntryAnchor", state.phase == .performing {
-            print("🎨 进入画画演奏模式！")
-            enterDrawingMode()
-            return
-        }
-        
-        print("⚠️ 忽略捏合（entity=\(entity.name), phase=\(state.phase)）")
+        print("⚠️ Pinch ignored (entity=\(entity.name), phase=\(state.phase))")
     }
     
     func isPartOfMbira(_ entity: Entity) -> Bool {
@@ -245,24 +188,23 @@ struct ImmersiveView: View {
         return false
     }
     
-    
+    // MARK: - mbira pinch
     
     func handleMbiraPinch() {
         guard let mbira = state.mbira else { return }
         guard !state.mbiraIsRotating else {
-            print("⏳ mbira 还在旋转中，忽略此次 pinch")
+            print("⏳ mbira rotating, ignoring pinch")
             return
         }
         
         state.mbiraPinchCount += 1
-        print("👌 捏 mbira 第 \(state.mbiraPinchCount) 次")
-        
+        print("👌 mbira pinch #\(state.mbiraPinchCount)")
         
         rotateMbira120Degrees(mbira)
         
         if state.mbiraPinchCount >= mbiraTriggerCount {
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 1_500_000_000)  // 等旋转完
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
                 startBackgroundMusic()
             }
         }
@@ -272,9 +214,8 @@ struct ImmersiveView: View {
         state.mbiraIsRotating = true
         
         let currentRotation = mbira.orientation
-        let increment = simd_quatf(angle: 2.0 * .pi / 3.0, axis: [0, 1, 0])  // 120°
+        let increment = simd_quatf(angle: 2.0 * .pi / 3.0, axis: [0, 1, 0])
         let targetRotation = currentRotation * increment
-        
         
         Task { @MainActor in
             let duration: Double = 1.0
@@ -283,7 +224,7 @@ struct ImmersiveView: View {
             
             for step in 1...steps {
                 let t = Float(step) / Float(steps)
-                let easedT = t * t * (3 - 2 * t)  // smoothstep 缓动
+                let easedT = t * t * (3 - 2 * t)
                 let interpolated = simd_slerp(currentRotation, targetRotation, easedT)
                 mbira.orientation = interpolated
                 try? await Task.sleep(nanoseconds: stepDuration)
@@ -294,16 +235,16 @@ struct ImmersiveView: View {
         }
     }
     
-    
+    // MARK: - Background music
     
     func startBackgroundMusic() {
         guard let mbira = state.mbira else { return }
         guard let bg = state.backgroundMusic else {
-            print("❌ 背景音乐未加载")
+            print("❌ Background music not loaded")
             return
         }
         
-        print("🎵 开始播放背景音乐！")
+        print("🎵 Starting background music")
         state.phase = .listening
         
         let playbackController = mbira.playAudio(bg)
@@ -315,13 +256,13 @@ struct ImmersiveView: View {
         }
     }
     
-    
+    // MARK: - Bubble
     
     func spawnBubble() {
         guard let content = state.content,
               let mbira = state.mbira else { return }
         
-        print("🫧 泡泡出现")
+        print("🫧 Bubble appearing")
         
         let bubbleMesh = MeshResource.generateSphere(radius: 0.04)
         var bubbleMat = PhysicallyBasedMaterial()
@@ -400,7 +341,7 @@ struct ImmersiveView: View {
         }
     }
     
-    
+    // MARK: - Cluster reveal
     
     func showClusterAndStartReleasing() {
         guard let cluster = state.clusterRoot else { return }
@@ -431,7 +372,7 @@ struct ImmersiveView: View {
         }
     }
     
-    
+    // MARK: - Ball play (tutorial mode)
     
     func playBall(_ ball: Entity) {
         let ballIndex = Int(ball.name.replacingOccurrences(of: "ball_", with: "")) ?? 0
@@ -442,12 +383,12 @@ struct ImmersiveView: View {
         let isCorrect = (noteNumber == expectedNote)
         
         if !isCorrect {
-            print("❌ 按错了！期望 sound\(expectedNote)，实际 sound\(noteNumber)")
+            print("❌ Wrong note. Expected sound\(expectedNote), got sound\(noteNumber)")
             flashError(ball)
             return
         }
         
-        print("✅ 按对！sound\(noteNumber)")
+        print("✅ Correct! sound\(noteNumber)")
         
         if noteIndex < state.audioResources.count {
             let resource = state.audioResources[noteIndex]
@@ -459,17 +400,9 @@ struct ImmersiveView: View {
         clearHighlights()
         
         state.songProgress += 1
-        state.totalCorrectCount += 1  // 🆕 累计捏对的总次数
-        
-    
-        // 🆕 累计够 6 次 → 出现阶段 3 入口
-        if state.totalCorrectCount >= correctNotesToTriggerPhase3 && !state.phase3EntryShown {
-            state.phase3EntryShown = true
-            spawnPhase3Entry()
-        }
         
         if state.songProgress >= songNotes.count {
-            print("🎉 弹完一遍！")
+            print("🎉 Song complete!")
             songCompleted()
         } else {
             Task { @MainActor in
@@ -483,7 +416,7 @@ struct ImmersiveView: View {
         guard state.songProgress < songNotes.count else { return }
         let expectedNote = songNotes[state.songProgress]
         state.currentExpectedNote = expectedNote
-        print("👉 请按：sound\(expectedNote)")
+        print("👉 Next: sound\(expectedNote)")
         
         for ball in state.spiralBalls {
             guard let model = ball as? ModelEntity else { continue }
@@ -554,324 +487,12 @@ struct ImmersiveView: View {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             state.songProgress = 0
-            print("🔄 重置，可以再弹一遍")
+            print("🔄 Reset, play again")
             highlightNextNote()
         }
     }
     
-    
-    
-    func spawnPhase3Entry() {
-        guard let content = state.content else { return }
-        print("✨ 阶段 3 入口出现！")
-        
-        
-        let anchor = Entity()
-        anchor.name = "phase3EntryAnchor"
-        anchor.position = [0, 1.6, -1.0]
-        
-        anchor.components.set(CollisionComponent(shapes: [.generateBox(size: [0.5, 0.3, 0.05])]))
-        anchor.components.set(InputTargetComponent())
-        anchor.components.set(HoverEffectComponent())
-        
-        content.add(anchor)
-        state.phase3EntryAnchor = anchor
-        
-        
-        if let panel = state.phase3EntryPanel {
-            anchor.addChild(panel)
-            print("✅ Panel 挂上 anchor 了")
-        } else {
-            print("❌ phase3EntryPanel 是 nil，attachments 没准备好")
-        }
-    }
-    
-    
-    
-    func enterDrawingMode() {
-        state.phase = .drawing
-        
-        
-        state.phase3EntryAnchor?.removeFromParent()
-        state.phase3EntryAnchor = nil
-        
-       
-        if let cluster = state.clusterRoot {
-            cluster.move(
-                to: Transform(
-                    scale: [0.01, 0.01, 0.01],
-                    rotation: cluster.orientation,
-                    translation: cluster.position
-                ),
-                relativeTo: cluster.parent,
-                duration: 1.0,
-                timingFunction: .easeIn
-            )
-        }
-        
-        // 让所有阶段 2 的球消失
-        for ball in state.spiralBalls {
-            ball.move(
-                to: Transform(
-                    scale: [0.01, 0.01, 0.01],
-                    rotation: ball.orientation,
-                    translation: ball.position
-                ),
-                relativeTo: ball.parent,
-                duration: 1.0,
-                timingFunction: .easeIn
-            )
-        }
-        
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_100_000_000)
-            
-            // 移除球
-            for ball in state.spiralBalls {
-                ball.removeFromParent()
-            }
-            state.spiralBalls = []
-            state.clusterRoot?.removeFromParent()
-            
-            // 让 mbira 重新出现
-            if let mbira = state.mbira {
-                mbira.isEnabled = true
-                mbira.scale = [0.001, 0.001, 0.001]
-                // 用 RCP 里设置的原始 scale
-                let targetScale = SIMD3<Float>(repeating: 0.001)  // 占位，等下立刻改
-                
-                mbira.move(
-                    to: Transform(
-                        scale: targetScale * 1000,  // 恢复到一个合理大小
-                        rotation: state.mbiraOriginalRotation,
-                        translation: mbira.position
-                    ),
-                    relativeTo: mbira.parent,
-                    duration: 1.5,
-                    timingFunction: .easeOut
-                )
-            }
-            
-            // 1.5 秒后生成画画路径点
-            try? await Task.sleep(nanoseconds: 1_600_000_000)
-            spawnDrawingPath()
-        }
-    }
-    
-    // MARK: - 🎨 生成画画路径（15 个点的曲线）
-    
-    func spawnDrawingPath() {
-        guard let content = state.content else { return }
-        guard let mbira = state.mbira else { return }
-        
-        print("🎨 生成画画路径")
-        
-        let mbiraPos = mbira.position(relativeTo: nil)
-        // 路径中心：mbira 前方 50cm
-        let pathCenter = SIMD3<Float>(mbiraPos.x, mbiraPos.y, mbiraPos.z + 0.5)
-        
-        for i in 0..<drawingPointCount {
-            let t = Float(i) / Float(drawingPointCount - 1)
-            
-            // 波浪线：水平铺开 60cm，上下波动 ±10cm
-            let x = (t - 0.5) * 0.6
-            let y = sin(t * 2 * .pi * 2) * 0.1  // 2 个波峰
-            let z: Float = 0
-            
-            let pointPos = pathCenter + SIMD3<Float>(x, y, z)
-            
-            let point = makeDrawingPoint(index: i)
-            point.position = pointPos
-            content.add(point)
-            state.drawingPoints.append(point)
-        }
-        
-        // 创建画笔
-        let brush = makeBrush()
-        brush.position = pathCenter
-        content.add(brush)
-        state.brush = brush
-        state.brushBaseY = pathCenter.y
-        
-        print("✅ 画画路径准备完成，开始捏住手画")
-    }
-    
-    func makeDrawingPoint(index: Int) -> ModelEntity {
-        let mesh = MeshResource.generateSphere(radius: 0.025)
-        var material = PhysicallyBasedMaterial()
-        // 未画：白色发光
-        material.baseColor = .init(tint: UIColor.white.withAlphaComponent(0.4))
-        material.emissiveColor = .init(color: .white)
-        material.emissiveIntensity = 2.0
-        material.blending = .transparent(opacity: .init(floatLiteral: 0.6))
-        material.roughness = .init(floatLiteral: 0.1)
-        material.clearcoat = .init(floatLiteral: 1.0)
-        
-        let point = ModelEntity(mesh: mesh, materials: [material])
-        point.name = "drawpoint_\(index)"
-        point.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.05)]))
-        point.components.set(InputTargetComponent())
-        point.components.set(HoverEffectComponent())
-        return point
-    }
-    
-    func makeBrush() -> ModelEntity {
-        let mesh = MeshResource.generateSphere(radius: 0.02)
-        var material = PhysicallyBasedMaterial()
-        let warmColor = UIColor(hue: 0.1, saturation: 0.5, brightness: 1.0, alpha: 1.0)
-        material.baseColor = .init(tint: warmColor.withAlphaComponent(0.6))
-        material.emissiveColor = .init(color: warmColor)
-        material.emissiveIntensity = 6.0
-        material.blending = .transparent(opacity: .init(floatLiteral: 0.8))
-        
-        let brush = ModelEntity(mesh: mesh, materials: [material])
-        brush.name = "brush"
-        brush.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.02)]))
-        brush.components.set(InputTargetComponent())
-        return brush
-    }
-    
-    
-    
-    func handleDrawing(at location: Point3D, entity: Entity) {
-        guard let brush = state.brush else { return }
-        
-        // 把 SwiftUI 的 3D 坐标转成 RealityKit 坐标（米为单位）
-        let pos = SIMD3<Float>(Float(location.x), Float(location.y), Float(location.z))
-        brush.position = pos
-        
-        // 重置"停止"计时器
-        state.lastDrawTime = Date()
-        state.drawingPaused = false
-        
-        // 如果音乐正在暂停，恢复
-        if let controller = state.audioController, controller.isPlaying == false && state.drawingProgress > 0 && state.drawingProgress < state.drawingPoints.count {
-            // 不主动 resume，避免重复 — 在用户画到下一个点时会自动推进
-        }
-        
-        // 检查是否画到了某个未画过的点
-        for (i, point) in state.drawingPoints.enumerated() {
-            if state.paintedPoints.contains(i) { continue }  // 已经画过
-            if i != state.drawingProgress { continue }  // 必须按顺序画下一个点
-            
-            let distance = simd_distance(brush.position, point.position)
-            if distance < 0.06 {  // 6cm 范围内算"画到了"
-                paintPoint(at: i)
-                break
-            }
-        }
-    }
-    
-    func paintPoint(at index: Int) {
-        guard let point = state.drawingPoints[safe: index] as? ModelEntity else { return }
-        
-        print("🎨 画到第 \(index + 1) / \(drawingPointCount) 个点")
-        state.paintedPoints.insert(index)
-        state.drawingProgress = index + 1
-        
-        // 点变色（白 → 暖橙）
-        if var mat = point.model?.materials.first as? PhysicallyBasedMaterial {
-            let warmColor = UIColor(hue: 0.08, saturation: 0.85, brightness: 1.0, alpha: 1.0)
-            mat.baseColor = .init(tint: warmColor)
-            mat.emissiveColor = .init(color: warmColor)
-            mat.emissiveIntensity = 4.0
-            point.model?.materials = [mat]
-        }
-        
-        // 推进 mp3：根据 progress 计算应该播到哪
-        advanceMusicToProgress()
-        
-        // 全部画完
-        if state.drawingProgress >= drawingPointCount {
-            print("🎉 画画演奏完成！")
-            drawingCompleted()
-        }
-    }
-    
-    func advanceMusicToProgress() {
-        guard let mbira = state.mbira else { return }
-        guard let bg = state.backgroundMusic else { return }
-        
-        // 第一次画时，启动音乐
-        if state.audioController == nil || state.audioController?.isPlaying == false {
-            let controller = mbira.playAudio(bg)
-            state.audioController = controller
-            print("▶️ 开始/恢复播放")
-        }
-    }
-    
-    // MARK: - 🎨 画停下来的处理
-    
-    func handleDrawingPause() {
-        state.lastDrawTime = Date()
-        // 启动一个计时检查任务
-        startPauseTimer()
-    }
-    
-    func startPauseTimer() {
-        // 防止启动多个计时
-        if state.pauseTimerRunning { return }
-        state.pauseTimerRunning = true
-        
-        Task { @MainActor in
-            while state.phase == .drawing {
-                try? await Task.sleep(nanoseconds: 200_000_000)  // 每 0.2s 检查一次
-                
-                guard let lastTime = state.lastDrawTime else { continue }
-                let elapsed = Date().timeIntervalSince(lastTime)
-                
-                // 1 秒不画 → 暂停音乐
-                if elapsed > 1.0 && !state.drawingPaused {
-                    state.drawingPaused = true
-                    print("⏸️ 暂停音乐")
-                    state.audioController?.pause()
-                }
-                
-                // 5 秒不画 → 重置一切
-                if elapsed > 5.0 {
-                    print("🔄 5 秒未画，重置进度")
-                    resetDrawing()
-                    state.pauseTimerRunning = false
-                    return
-                }
-            }
-            state.pauseTimerRunning = false
-        }
-    }
-    
-    func resetDrawing() {
-        // 停止音乐
-        state.audioController?.stop()
-        state.audioController = nil
-        
-        // 重置所有点
-        for (i, point) in state.drawingPoints.enumerated() {
-            guard let model = point as? ModelEntity else { continue }
-            if var mat = model.model?.materials.first as? PhysicallyBasedMaterial {
-                mat.baseColor = .init(tint: UIColor.white.withAlphaComponent(0.4))
-                mat.emissiveColor = .init(color: .white)
-                mat.emissiveIntensity = 2.0
-                model.model?.materials = [mat]
-            }
-        }
-        
-        state.paintedPoints.removeAll()
-        state.drawingProgress = 0
-        state.drawingPaused = false
-        state.lastDrawTime = nil
-    }
-    
-    func drawingCompleted() {
-        print("🎉 演奏完成")
-        // 所有点欢呼一下
-        for point in state.drawingPoints {
-            guard let model = point as? ModelEntity else { continue }
-            emitRipple(from: model)
-            flashHighlight(model)
-        }
-    }
-    
-    // MARK: - 涟漪 & 高光
+    // MARK: - Ripple & highlight
     
     func emitRipple(from ball: Entity) {
         guard let content = state.content else { return }
@@ -936,12 +557,12 @@ struct ImmersiveView: View {
     func colorOfBall(_ ball: Entity) -> UIColor {
         if ball.name.hasPrefix("ball_") {
             let idx = Int(ball.name.replacingOccurrences(of: "ball_", with: "")) ?? 0
-            return warmGradientColor(index: idx, total: ballCount)
+            return greenGradientColor(index: idx, total: ballCount)
         }
-        return UIColor(hue: 0.1, saturation: 0.7, brightness: 1.0, alpha: 1.0)
+        return UIColor(hue: 0.33, saturation: 0.7, brightness: 1.0, alpha: 1.0)
     }
     
-    // MARK: - 球脱落
+    // MARK: - Ball release
     
     func startBallsRelease() {
         guard let clusterRoot = state.clusterRoot,
@@ -971,7 +592,7 @@ struct ImmersiveView: View {
     }
     
     func enterPerformanceMode() {
-        print("🎼 进入演奏阶段！自动开始教学模式")
+        print("🎼 Performance mode, tutorial starting")
         state.phase = .performing
         
         for ball in state.spiralBalls {
@@ -1032,7 +653,7 @@ struct ImmersiveView: View {
         Task { @MainActor in
             let startTime = Date()
             while !Task.isCancelled {
-                if state.phase == .performing || state.phase == .drawing { break }
+                if state.phase == .performing { break }
                 let elapsed = Float(Date().timeIntervalSince(startTime))
                 let angle = elapsed * (.pi * 2 / 20)
                 let tilt = simd_quatf(angle: .pi / 12, axis: [0, 0, 1])
@@ -1045,7 +666,7 @@ struct ImmersiveView: View {
     
     func makeBall(index: Int, total: Int) -> ModelEntity {
         let mesh = MeshResource.generateSphere(radius: 0.045)
-        let color = warmGradientColor(index: index, total: total)
+        let color = greenGradientColor(index: index, total: total)
         
         var material = PhysicallyBasedMaterial()
         material.baseColor = .init(tint: color.withAlphaComponent(0.5))
@@ -1062,10 +683,13 @@ struct ImmersiveView: View {
         return ball
     }
     
-    func warmGradientColor(index: Int, total: Int) -> UIColor {
+    // Green gradient: light yellow-green -> deep emerald
+    func greenGradientColor(index: Int, total: Int) -> UIColor {
         let t = Float(index) / Float(total - 1)
-        let hue = CGFloat(0.13 - 0.13 * t)
-        return UIColor(hue: hue, saturation: 0.85, brightness: 1.0, alpha: 1.0)
+        let hue = CGFloat(0.22 + 0.13 * t)  // 0.22 (yellow-green) -> 0.35 (emerald)
+        let saturation = CGFloat(0.65 + 0.25 * Double(t))
+        let brightness = CGFloat(1.0 - 0.15 * Double(t))
+        return UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1.0)
     }
     
     func clusterOffset(index: Int, total: Int) -> SIMD3<Float> {
@@ -1087,7 +711,6 @@ enum ScenePhase {
     case listening
     case activated
     case performing
-    case drawing  // 🆕 阶段 3
 }
 
 @Observable
@@ -1098,13 +721,12 @@ class SceneState {
     var audioResources: [AudioFileResource] = []
     var spiralBalls: [Entity] = []
     
-    // 教学模式
+    // Tutorial mode
     var songProgress: Int = 0
     var currentExpectedNote: Int = -1
     var highlightedBalls: Set<String> = []
-    var totalCorrectCount: Int = 0  // 🆕 累计捏对总数
     
-    // 阶段 1
+    // Phase 1
     var mbira: Entity?
     var mbiraOriginalRotation: simd_quatf = simd_quatf()
     var mbiraPinchCount: Int = 0
@@ -1113,30 +735,6 @@ class SceneState {
     var backgroundMusic: AudioFileResource?
     var audioController: AudioPlaybackController?
     var bubble: Entity?
-    
-    // 🆕 阶段 3 入口
-    var phase3EntryPanel: Entity?
-    var phase3EntryAnchor: Entity?
-    var phase3EntryPanelExists: Bool = false
-    var phase3EntryShown: Bool = false  // 🆕 是否已经显示过阶段 3 入口
-    
-    // 🆕 阶段 3：画画
-    var drawingPoints: [Entity] = []
-    var paintedPoints: Set<Int> = []
-    var drawingProgress: Int = 0
-    var brush: Entity?
-    var brushBaseY: Float = 0
-    var lastDrawTime: Date?
-    var drawingPaused: Bool = false
-    var pauseTimerRunning: Bool = false
-}
-
-// MARK: - 数组安全下标扩展
-
-extension Array {
-    subscript(safe index: Int) -> Element? {
-        return indices.contains(index) ? self[index] : nil
-    }
 }
 
 #Preview(immersionStyle: .mixed) {
