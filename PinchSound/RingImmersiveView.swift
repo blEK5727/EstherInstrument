@@ -23,9 +23,9 @@ struct RingImmersiveView: View {
     // Ring configuration
     let ringBallCount  = 9
     let ringRadius: Float = 0.7       // metres from centre
-    let ringCentreY: Float = 1.5      // height above floor
-    let ringCentreZ: Float = -1.0     // distance in front of user
-    let noteCount      = 5            // matches your sound1–sound5 assets
+    let ringCentreY: Float = 0.5      // eye level
+    let ringCentreZ: Float = 0     // 1.5m in front of user (negative = forward on visionOS)
+    let noteCount      = 9            // matches glock1–glock9
 
     @State private var ringState = RingSceneState()
 
@@ -48,16 +48,24 @@ struct RingImmersiveView: View {
     // MARK: - Audio
 
     func loadAudio() async {
+        print("🎵 Starting audio load, looking for glock1–glock\(noteCount)")
         for i in 1...noteCount {
-            let name = "sound\(i)"
-            do {
-                let res = try await AudioFileResource(named: "\(name).mp3")
+            let name = "glock\(i)"
+            // Try without extension first (RealityKit sometimes prefers this)
+            if let res = try? await AudioFileResource(named: name) {
                 ringState.audioResources.append(res)
-                print("✅ RingView loaded \(name).mp3")
-            } catch {
-                print("❌ RingView failed to load \(name).mp3: \(error)")
+                print("✅ Loaded \(name) (no extension)")
+                continue
             }
+            // Fallback: try with .wav
+            if let res = try? await AudioFileResource(named: "\(name).wav") {
+                ringState.audioResources.append(res)
+                print("✅ Loaded \(name).wav")
+                continue
+            }
+            print("❌ Could not load \(name) — check file is added to target")
         }
+        print("🎵 Audio load done: \(ringState.audioResources.count)/\(noteCount) files loaded")
     }
 
     // MARK: - Spawn ring
@@ -74,12 +82,10 @@ struct RingImmersiveView: View {
             let ball = makeRingBall(index: i)
             ball.position = position
 
-            // Scale in from zero for a nice entrance
             ball.scale = .init(repeating: 0.01)
             content.add(ball)
             ringState.ringBalls.append(ball)
 
-            // Staggered pop-in animation
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(i) * 120_000_000)
                 ball.move(
@@ -95,7 +101,6 @@ struct RingImmersiveView: View {
             }
         }
 
-        // Start gentle float animation for all balls
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(ringBallCount) * 120_000_000 + 600_000_000)
             startFloating()
@@ -108,7 +113,7 @@ struct RingImmersiveView: View {
     // MARK: - Ball factory
 
     func makeRingBall(index: Int) -> ModelEntity {
-        let mesh = MeshResource.generateSphere(radius: 0.05)
+        let mesh = MeshResource.generateBox(size: 0.09, cornerRadius: 0.01)
 
         var mat = PhysicallyBasedMaterial()
         let color = ringGradientColor(index: index, total: ringBallCount)
@@ -124,7 +129,7 @@ struct RingImmersiveView: View {
         let ball = ModelEntity(mesh: mesh, materials: [mat])
         ball.name = "ringball_\(index)"
 
-        ball.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.05)]))
+        ball.components.set(CollisionComponent(shapes: [.generateBox(size: [0.09, 0.09, 0.09])]))
         ball.components.set(InputTargetComponent())
         ball.components.set(HoverEffectComponent())
 
@@ -132,9 +137,12 @@ struct RingImmersiveView: View {
     }
 
     func ringGradientColor(index: Int, total: Int) -> UIColor {
-        // Full hue sweep around the ring
-        let hue = CGFloat(index) / CGFloat(total)
-        return UIColor(hue: hue, saturation: 0.8, brightness: 1.0, alpha: 1.0)
+        // Sweep from bright lime green → deep forest green
+        let t = CGFloat(index) / CGFloat(total)
+        let hue: CGFloat = 0.33           // fixed green hue
+        let saturation = 0.5 + 0.5 * t   // 0.5 → 1.0
+        let brightness = 1.0 - 0.5 * t   // 1.0 → 0.5
+        return UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1.0)
     }
 
     // MARK: - Gentle float
@@ -162,9 +170,9 @@ struct RingImmersiveView: View {
         guard entity.name.hasPrefix("ringball_") else { return }
 
         let index     = Int(entity.name.replacingOccurrences(of: "ringball_", with: "")) ?? 0
-        let noteIndex = index % noteCount
+        let noteIndex = index  // each ball gets its own unique note
 
-        print("👌 Pinched ringball_\(index) → playing sound\(noteIndex + 1)")
+        print("👌 Pinched ringball_\(index) → playing glock\(noteIndex + 1)")
 
         if noteIndex < ringState.audioResources.count {
             entity.playAudio(ringState.audioResources[noteIndex])

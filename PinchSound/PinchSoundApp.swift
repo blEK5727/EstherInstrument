@@ -16,8 +16,6 @@ struct PinchSoundApp: App {
             ContentView()
                 .environment(appModel)
         }
-        .windowStyle(.volumetric)
-        .defaultSize(width: 0.5, height: 0.45, depth: 0.01, in: .meters)
 
         // Mbira + spheres experience
         ImmersiveSpace(id: appModel.instrumentSpaceID) {
@@ -29,7 +27,7 @@ struct PinchSoundApp: App {
                     appModel.activeSpaceID = nil
                 }
         }
-        .immersionStyle(selection: .constant(.progressive), in: .progressive)
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
 
         // Plain ring of spheres experience
         ImmersiveSpace(id: appModel.ringSpaceID) {
@@ -41,6 +39,6 @@ struct PinchSoundApp: App {
                     appModel.activeSpaceID = nil
                 }
         }
-        .immersionStyle(selection: .constant(.progressive), in: .progressive)
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }
 }
