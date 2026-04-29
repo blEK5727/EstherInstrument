@@ -58,5 +58,20 @@ struct PinchSoundApp: App {
                 }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
+
+        // 4 — Ambient soundscape orbs
+        ImmersiveSpace(id: appModel.ambientSpaceID) {
+            AmbientImmersiveView()
+                .environment(appModel)
+                .onAppear {
+                    appModel.immersiveSpaceState = .open
+                    appModel.activeSpaceID = appModel.ambientSpaceID
+                }
+                .onDisappear {
+                    appModel.immersiveSpaceState = .closed
+                    appModel.activeSpaceID = nil
+                }
+        }
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }
 }
